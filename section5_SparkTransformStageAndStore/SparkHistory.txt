@@ -1,0 +1,154 @@
+/bin/yarn application -list | grep 
+/bin/yarn application -kill
+
+spark-shell --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M 
+
+val l = (1 to 1000).toList
+val ordersRDD1 = sc.textFile("/public/retail_db/orders")
+val productsLocalData = scala.io.Source.fromFile("/data/retail_db/products/part-00000").getLines.toList
+val productsRDD1 = sc.parallelize(productsLocalData)
+val l_RDD = sc.parallelize(l)
+
+
+pyspark --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M
+
+val ordersRDD1 = sc.textFile("/public/retail_db/orders")
+val orderitemsRDD1 = sc.textFile("/public/retail_db/order_items")
+
+def ordersPairedRDD(input : String) = {
+	var array = input.split(",")
+	var item1 = array(0).toInt
+	var item2 = array(1).substring(0,10).replace("-","").toInt
+	var returntuple = (item1,item2)
+	returntuple
+}
+
+def orderItemsPairedRDD(input : String) = {
+	var array = input.split(",")
+	var item1 = array(1).toInt
+	var item4 = array(4).toFloat
+	var returntuple = (item1,item4)
+	returntuple
+}
+
+ordersRDD1.first
+orderitemsRDD1.first
+
+val ordersMap = ordersRDD1.map(order => (order.split(",")(0).toInt, order.split(",")(1).substring(0,10)))
+ordersMap.first
+val orderItemsMap = orderitemsRDD1.map(x => orderItemsPairedRDD(x))
+orderItemsMap.first
+val joinedOrders = ordersMap.join(orderItemsMap)
+
+// get all of the orders which do not have corresponding entries in order items
+
+val ordersRDD1 = sc.textFile("/public/retail_db/orders")
+val orderitemsRDD1 = sc.textFile("/public/retail_db/order_items")
+def mapOrders(input : String) = {
+	var array = input.split(",")
+	var item1 = array(0).toInt
+	var returntuple = (item1,input)
+	returntuple
+}
+def mapOrderItems(input : String) = {
+	var array = input.split(",")
+	var item1 = array(1).toInt
+	var returntuple = (item1,input)
+	returntuple
+}
+val ordersMap = ordersRDD1.map(x => mapOrders(x))
+val orderItemsMap = orderitemsRDD1.map(x => mapOrderItems(x))
+val ordersLeftOuterJoin = ordersMap.leftOuterJoin(orderItemsMap)
+ordersLeftOuterJoin.take(10).foreach(println)
+// example record = (24688,(24688,2013-12-25 00:00:00.0,12022,COMPLETE,Some(61827,24688,957,1,299.98,299.98)))
+// orders is the table on the left that also may/may not have any corresponding connected records on the right 
+val filteredOrders = ordersLeftOuterJoin.filter(x => x._2._2.toString.contains("None"))
+val ordersWithNoOrderItem = filteredOrders.map(x => x._2._1)
+ordersWithNoOrderItem.take(10).foreach(println)
+
+val rightOuterJoinOrders = orderItemsMap.rightOuterJoin(ordersMap)
+// yields = org.apache.spark.rdd.RDD[(Int, (Option[String], String))]
+rightOuterJoinOrders.take(10).foreach(println)
+val rightFilteredOrders = rightOuterJoinOrders.filter(x => x._2._1.toString.contains("None"))
+val rightOrdersWithNoOrderItem = rightFilteredOrders.map(x => x._2._2)
+// yields = org.apache.spark.rdd.RDD[String]
+rightOrdersWithNoOrderItem.take(10).foreach(println)
+
+// compute revenue for the month of september, 2013
+// 1. get our data sets
+val ordersRDD1 = sc.textFile("/public/retail_db/orders")
+val orderitemsRDD1 = sc.textFile("/public/retail_db/order_items")
+// only caount orders that are in september 2013 and either complete of closed
+val filteredOrders = ordersRDD1.filter(x => (x.split(",")(3) == "COMPLETE"|| x.split(",")(3) == "CLOSED")&&(x.split(",")(1).contains("2013-09")))
+// make a tuple of each record; we only need to order ID and then a dummy, so (#, "")
+val filteredOrders2 = filteredOrders.map(order => (order.split(",")(0),""))
+// make a tuple from the order items, we need the FK to order ID, and the total amount
+val orderItemsTuple = orderitemsRDD1.map(x => (x.split(",")(1),x.split(",")(5).toFloat))
+// join the orders
+val joinedOrders = filteredOrders2.join(orderItemsTuple)
+val joinedOrders2 = joinedOrders.map(x => (1,x._2._2))
+val totalmonth =joinedOrders2.reduceByKey((x,y) => x+y)
+totalmonth.take(10).foreach(println)
+
+// using aggregateByKey
+// orderitems2 = (1,299.98)
+//(2,199.99)
+//(2,250.0)
+// we want (order_id, (order_revenue, max_order_item_subtotal))
+val orderitems2 = orderitems3.map(x => (x.split(",")(1).toInt,x.split(",")(4).toFloat))
+val orderitems3 = orderitems.filter(x => x.split(",")(1).toInt == 2)
+// will calculate sum and max_order_item_subtotal
+val revenueAndMaxPerProductId = orderitems2.aggregateByKey((0.0f,0.0f))((inter,subtotal) => (inter._1 + subtotal, if(subtotal > inter._2) subtotal else inter._2),
+	(total, inter) => (total._1 + inter._1, if(total._2 > inter._2) total._2 else inter._2))
+// will calculate sum, max_order_item_subtotal, and min_order_item_subtotal
+val revenueAndMaxPerProductId = orderitems2.aggregateByKey((0.0f,0.0f,1000000.0f))((inter,subtotal) => (inter._1 + subtotal, if(subtotal > inter._2) subtotal else inter._2,
+	if(subtotal < inter._3) subtotal else inter._3),
+	(total, inter) => (total._1 + inter._1, if(total._2 > inter._2) total._2 else inter._2, if(total._3 > inter._3) total._3 else inter._3))
+
+// will calculate sum, max_order_item_subtotal, and item count(to use for calculating average)
+val revenueAndMaxPerProductId = orderitems2.aggregateByKey((0.0f,0.0f,0.0f))((inter,subtotal) => (inter._1 + subtotal, if(subtotal > inter._2) subtotal else inter._2, inter._3+1),
+	(total, inter) => (total._1 + inter._1, if(total._2 > inter._2) total._2 else inter._2, inter._3))
+	
+// get top N priced products within each product category
+val products = sc.textFile("/public/retail_db/products")
+val productsMap = products.filter(x => x.split(",")(4) != "").map(x => (x.split(",")(1)toInt,x))
+val productsGroupByCategory = productsMap.groupByKey
+
+// method to take an iterable and reaturn an iterable of the top 5 prices
+def getTopNPricedProducts(productsIterable: Iterable[String], topN: Int) : Iterable[String] = {
+	val productPrices = productsIterable.map(x => x.split(",")(4).toFloat).toSet
+	val topNPrices = productPrices.toList.sorted.reverse.take(topN)
+	val productsSorted = productsIterable.toList.sortBy(product => -product.split(",")(4).toFloat)
+	val minOfTopNPrices = topNPrices.min
+	val topNPricedProducts = productsSorted.takeWhile(product => product.split(",")(4).toFloat >= minOfTopNPrices)
+	topNPricedProducts
+}
+val top3PricedProductsPerCategory = productsGroupByCategory.flatMap(rec => getTopNPricedProducts(rec._2,3))
+
+// set operations
+// set operations
+val orders = sc.textFile("/public/retail_db/orders")
+// org.apache.spark.rdd.RDD[String]
+// String = 1,2013-07-25 00:00:00.0,11599,CLOSED
+// find the common customers who placed orders in 2013 august AND september, and the ones who placed orders in august OR september
+// so make 2 filters, one for august, one for septemeber
+val augustOrders = orders.filter(rec => rec.split(",")(1).contains("2013-08"))
+val septemberOrders = orders.filter(rec => rec.split(",")(1).contains("2013-09"))
+// for each filtered set, map out to just the 3rd field
+val augustCustomers = augustOrders.map(rec => rec.split(",")(2).toInt)
+val septemberCustomers = septemberOrders.map(rec => rec.split(",")(2).toInt)
+// union the 2 sets and then distinct the results
+val intersectionCustomers = augustCustomers.intersection(septemberCustomers)
+val unionCustomers = augustCustomers.union(septemberCustomers).distinct
+intersectionCustomers.take(25).foreach(println)
+unionCustomers.take(25).foreach(println)
+
+// get all customers who placed orders in august but not september
+val augustMinusSeptcustomers = augustCustomers.map(x => (x,x)).leftOuterJoin(septemberCustomers.map(x => (x,x))).filter(x => x._2._2.toString.contains("None")).map(x => x._1)
+augustMinusSeptcustomers.distinct.count

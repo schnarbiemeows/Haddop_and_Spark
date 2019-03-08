@@ -1,0 +1,246 @@
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "describe orders" \
+--verbose
+
+---------------------------------------------------------------------------------------------------------
+| Field                | Type                 | Null | Key | Default              | Extra                | 
+---------------------------------------------------------------------------------------------------------
+| order_id             | int(11)              | NO  | PRI | (null)               | auto_increment       | 
+| order_date           | datetime             | NO  |     | (null)               |                      | 
+| order_customer_id    | int(11)              | NO  |     | (null)               |                      | 
+| order_status         | varchar(45)          | NO  |     | (null)               |                      | 
+---------------------------------------------------------------------------------------------------------
+
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "describe order_items" \
+--verbose
+
+
+---------------------------------------------------------------------------------------------------------
+| Field                | Type                 | Null | Key | Default              | Extra                | 
+---------------------------------------------------------------------------------------------------------
+| order_item_id        | int(11)              | NO  | PRI | (null)               | auto_increment       | 
+| order_item_order_id  | int(11)              | NO  |     | (null)               |                      | 
+| order_item_product_id | int(11)              | NO  |     | (null)               |                      | 
+| order_item_quantity  | tinyint(4)           | NO  |     | (null)               |                      | 
+| order_item_subtotal  | float                | NO  |     | (null)               |                      | 
+| order_item_product_price | float                | NO  |     | (null)               |                      | 
+---------------------------------------------------------------------------------------------------------
+
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "describe products" \
+--verbose
+
+---------------------------------------------------------------------------------------------------------
+| Field                | Type                 | Null | Key | Default              | Extra                | 
+---------------------------------------------------------------------------------------------------------
+| product_id           | int(11)              | NO  | PRI | (null)               | auto_increment       | 
+| product_category_id  | int(11)              | NO  |     | (null)               |                      | 
+| product_name         | varchar(45)          | NO  |     | (null)               |                      | 
+| product_description  | varchar(255)         | NO  |     | (null)               |                      | 
+| product_price        | float                | NO  |     | (null)               |                      | 
+| product_image        | varchar(255)         | NO  |     | (null)               |                      | 
+---------------------------------------------------------------------------------------------------------
+
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "describe categories" \
+--verbose
+
+---------------------------------------------------------------------------------------------------------
+| Field                | Type                 | Null | Key | Default              | Extra                | 
+---------------------------------------------------------------------------------------------------------
+| category_id          | int(11)              | NO  | PRI | (null)               | auto_increment       | 
+| category_department_id | int(11)              | NO  |     | (null)               |                      | 
+| category_name        | varchar(45)          | NO  |     | (null)               |                      | 
+---------------------------------------------------------------------------------------------------------
+
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "describe customers" \
+--verbose
+
+---------------------------------------------------------------------------------------------------------
+| Field                | Type                 | Null | Key | Default              | Extra                | 
+---------------------------------------------------------------------------------------------------------
+| customer_id          | int(11)              | NO  | PRI | (null)               | auto_increment       | 
+| customer_fname       | varchar(45)          | NO  |     | (null)               |                      | 
+| customer_lname       | varchar(45)          | NO  |     | (null)               |                      | 
+| customer_email       | varchar(45)          | NO  |     | (null)               |                      | 
+| customer_password    | varchar(45)          | NO  |     | (null)               |                      | 
+| customer_street      | varchar(255)         | NO  |     | (null)               |                      | 
+| customer_city        | varchar(45)          | NO  |     | (null)               |                      | 
+| customer_state       | varchar(45)          | NO  |     | (null)               |                      | 
+| customer_zipcode     | varchar(45)          | NO  |     | (null)               |                      | 
+---------------------------------------------------------------------------------------------------------
+
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "describe departments" \
+--verbose
+
+---------------------------------------------------------------------------------------------------------
+| Field                | Type                 | Null | Key | Default              | Extra                | 
+---------------------------------------------------------------------------------------------------------
+| department_id        | int(11)              | NO  | PRI | (null)               | auto_increment       | 
+| department_name      | varchar(45)          | NO  |     | (null)               |                      | 
+---------------------------------------------------------------------------------------------------------
+
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "select o.order_id, o.order_date, oi.order_item_subtotal, p.product_name from orders o, order_items oi, products p where (o.order_id >=4 and o.order_id <=24) and o.order_id = oi.order_item_order_id
+	and oi.order_item_product_id = p.product_id" \
+--verbose
+
+brainstorming:
+order_date <- 1-1 -> order_id  <----join-----> order_item_order_id <- 1-1 -> order_item_product_id <------ join -------> product_id <- 1-1 -> product_name 
+
+(order_id, order_date)                   (order_item_order_id, (order_item_product_id, order_item_subtotal))         (product_id, product_name)
+
+                           JOIN
+
+    (order_id, (order_date,order_item_product_id, order_item_subtotal))
+
+                          flatMap
+
+    order_date,order_item_product_id, order_item_subtotal
+
+                            map
+
+    (order_item_product_id, (order_date, order_item_subtotal))   												    (product_id, product_name)
+
+                                                                            JOIN
+														 
+														 (product_id, (order_date, order_item_subtotal,product_name))
+                                                                                                                                                                                                                                                                                                            
+                                                                            flatMap
+
+                                                            order_date, order_item_subtotal,product_name
+
+I want to groupByKey = (K, Iterable<V>) cant specify a function here
+so iterable tuples
+then map(x => (x._1, x._2.toList.sortBy(_._2 => -_._2)))
+
+// get the data 
+val orders = sc.textFile("/public/retail_db/orders")
+val order_items = sc.textFile("/public/retail_db/order_items")
+val productsLocalData = scala.io.Source.fromFile("/data/retail_db/products/part-00000").getLines.toList
+// to use sc to make an RDD the data must be in List form
+val products = sc.parallelize(productsLocalData)
+// orders.take(10).foreach(println)
+// filter products to get that dud record out
+val filtered_products = products.filter(x => x.split(",")(4) != "")
+// filter to get just order # 3
+val filtered_orders = orders.filter(rec => rec.split(",")(0).toInt == 24).filter(rec => rec.split(",")(3) == "COMPLETE" || rec.split(",")(3) == "CLOSED")
+// val filtered_orders = orders.filter(rec => rec.split(",")(3) == "COMPLETE" || rec.split(",")(3) == "CLOSED")
+// filtered_orders.take(10).foreach(println)
+// our one order record = RDD[String] = 3,2013-07-25 00:00:00.0,12111,COMPLETE
+// map orders and order_items to tuples so that we can JOIN
+val tupled_orders = filtered_orders.map(rec => (rec.split(",")(0).toInt, rec.split(",")(1)))
+// org.apache.spark.rdd.RDD[(String, String)]
+val tupled_order_items = order_items.map(rec => (rec.split(",")(1).toInt, (rec.split(",")(2).toInt, rec.split(",")(4).toFloat)))
+//val tupled_order_items = order_items.filter(rec => rec.split(",")(1).toInt == 24).map(rec => (rec.split(",")(1), (rec.split(",")(2), rec.split(",")(4))))
+// org.apache.spark.rdd.RDD[(String, (String, String))] 
+// tupled_orders.take(10).foreach(println)
+// tupled_order_items.take(10).foreach(println)
+// join the orders with the order_items, and then filter out any that have no matches
+val joined_orders = tupled_orders.join(tupled_order_items)
+// org.apache.spark.rdd.RDD[(String, (String, (String, String)))]
+// joined_orders.take(10).foreach(println)
+// (4,(2013-07-25 00:00:00.0,(897,49.98)))
+// (4,(2013-07-25 00:00:00.0,(365,299.95)))
+// (4,(2013-07-25 00:00:00.0,(502,150.0)))
+// (4,(2013-07-25 00:00:00.0,(1014,199.92)))
+// this isn't really kosher, but it will convert any tuples to a string RDD
+val mapped_joined_orders = joined_orders.map(rec => rec.toString).map(rec => rec.replace("(","")).map(rec => rec.replace(")",""))
+// org.apache.spark.rdd.RDD[String] is the result
+// 4,2013-07-25 00:00:00.0,897,49.98
+// 4,2013-07-25 00:00:00.0,365,299.95
+// 4,2013-07-25 00:00:00.0,502,150.0
+// 4,2013-07-25 00:00:00.0,1014,199.92
+// optional - pull out the 00:00:00.0
+val joined_orders = mapped_joined_orders.map(rec => rec.replace(" 00:00:00.0",""))
+// 4,2013-07-25,897,49.98
+
+// ************
+// I have to get the daily revenue per product ID!
+// ************
+// dont need the order id anymore so map it out
+val mapped_joined_orders = joined_orders.map(rec => rec._2)
+// then groupByKey the date, we have an iterable of (product_id, amount)
+val group_orders_by_date = mapped_joined_orders.groupByKey()
+// org.apache.spark.rdd.RDD[(String, Iterable[(String, Float)])]
+// (2013-07-25 00:00:00.0,CompactBuffer((403,129.99), (502,50.0), (502,250.0), (1073,199.99), (1073,199.99)))
+val grouped_orders_by_date = group_orders_by_date.map(rec => (rec._1,rec._2.toList))
+// org.apache.spark.rdd.RDD[(String, List[(String, Float)])]
+// then, create a function to pass the iterable into,
+// 1 - convert the iterable to a list
+// 2 - reduceByKey by product ID to sum up the amounts
+// 3 - sort the total in descending order!
+def reduceAndJoinTotals(input : List[(String, Float)]) : List[(String, Float)] = {
+	val stage2 = input.groupBy(rec => rec._1)
+	// (y,List((y,2.0), (y,1.0)))
+	// (x,List((x,1.0), (x,1.0)))
+	// (c,List((c,3.0), (c,1.0)))
+	val stage3 = stage2.
+	output
+}
+def reduceTotals(input : List[(String, Float)]) : (String, Float) = {
+	val output = input.reduceLeft((rec,y) => rec + y._2)
+	output
+}
+// flatMapValues , then reorder with product_id as key, then join with products table
+
+// now, re-tuple by order_item_product_id so I can JOIN with the products tuple
+val tupled_orders = joined_orders.map(rec => (rec.split(",")(2), (rec.split(",")(1), rec.split(",")(3))))
+// org.apache.spark.rdd.RDD[(String, (String, String))]
+// tuple the products
+val tupled_products = filtered_products.map(rec => (rec.split(",")(0).toInt,rec.split(",")(2)))
+// org.apache.spark.rdd.RDD[(String, String)]
+// (1,Quest Q64 10 FT. x 10 FT. Slant Leg Instant U)
+val joined_orders_and_products = tupled_orders.join(tupled_products)
+// org.apache.spark.rdd.RDD[(String, ((String, String), String))]
+// (1014,((2013-07-25,199.92),O'Brien Men's Neoprene Life Vest))
+// (897,((2013-07-25,49.98),Team Golf New England Patriots Putter Grip))
+// (365,((2013-07-25,299.95),Perfect Fitness Perfect Rip Deck))
+// (502,((2013-07-25,150.0),Nike Men's Dri-FIT Victory Golf Polo))
+// this isn't really kosher, but it will convert any tuples to a string RDD
+val total_joined_orders = joined_orders_and_products.map(rec => rec.toString).map(rec => rec.replace("(","")).map(rec => rec.replace(")",""))
+val total_joined_orders_tuple = total_joined_orders.map(rec => (rec.split(",")(1),(rec.split(",")(2),rec.split(",")(3))))
+// org.apache.spark.rdd.RDD[(String, (String, String))]
+// (2013-07-25,(199.92,O'Brien Men's Neoprene Life Vest))
+// now groupByKey
+val grouped_orders = total_joined_orders_tuple.groupByKey()
+// org.apache.spark.rdd.RDD[(String, Iterable[(String, String)])]
+// (2013-07-25,CompactBuffer((199.92,O'Brien Men's Neoprene Life Vest), (49.98,Team Golf New England Patriots Putter Grip), (299.95,Perfect Fitness Perfect Rip Deck), (150.0,Nike Men's Dri-FIT Victory Golf Polo)))
+// so, its easier to take an iterable and run it through a function in order to access it's inner elements
+def sortProducts(productsList: Iterable[(String,String)]) : Iterable[(String,String)] = {
+	val sortedProducts = productsList.toList.sortBy(rec => -rec._1.toFloat)
+	sortedProducts
+}
+// run the Iterable through the sorting method
+val grouped_orders_list = grouped_orders.map(rec => (rec._1, sortProducts(rec._2)))
+// org.apache.spark.rdd.RDD[(String, List[(String, String)])]
+// grouped_orders_list.take(10).foreach(println)
+// (2013-07-25,List((299.95,Perfect Fitness Perfect Rip Deck), (199.92,O'Brien Men's Neoprene Life Vest), (150.0,Nike Men's Dri-FIT Victory Golf Polo), (49.98,Team Golf New England Patriots Putter Grip)))
+// flatMap the results
+val grouped_orders_list_sorted = grouped_orders_list.sortByKey()
+val final_orders = grouped_orders_list_sorted.flatMapValues(rec => rec).map(rec => rec.toString).map(rec => rec.replace("(","")).map(rec => rec.replace(")",""))
+final_orders.take(10000).foreach(println)

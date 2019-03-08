@@ -1,0 +1,45 @@
+import scala.io.Source
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000")
+orderItems
+orderItems.take(10).foreach(println)
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+orderItems.foreach(println)
+val ordeitemstally = orderItems.map(x =>1)
+ordeitemstally.foreach(println)
+val rdd1 = orderItems.map(x =>(x,1))
+rdd1.size
+orderItems.size
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+orderItems.size
+val rdd1 = orderItems.map(x =>(x,1))
+orderItems.size
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+var rdd1 = orderItems
+var rdd2 = rdd1.map(rec => rec)
+rdd2.size
+var rdd3 = rdd2.map(rec => (1,rec))
+rdd2.size
+rdd1.size
+orderItems.size
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+orderItems.size
+var rdd1 = orderItems
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+var rdd1 = orderItems
+orderItems.size
+rdd1.size
+orderItems.size
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+val rdd1 = orderItems.map(x => (1,x))
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines.toList
+val orderItemsFilter = orderItems.filter(orderItem => orderItem.split(",")(1).toInt == 2)
+val orderItemsMap = orderItemsFilter.map(orderItem => orderItem.split(",")(4).toFloat)
+orderItemsMap.reduce((x,y) => x+y)
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000")
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+orderItems.take(10).foreach(println)
+val t = (1,1,957,1,299.98,299.98)
+t._3
+t.productIterator.foreach(println)

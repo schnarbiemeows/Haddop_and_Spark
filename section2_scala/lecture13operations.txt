@@ -1,0 +1,29 @@
+import scala.io.source
+:save C:\GIT\local_repositories\CCA175\CCA175_certification\section2_scala\lecture13history.txt
+// C:\Hadoop\certification\InstructorsGITrepo\data
+C:\Hadoop\certification\InstructorsGITrepo\data\retail_db\order_items\part-00000
+
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+val rdd1 = orderItems.map(x => (1,x))
+val results = rdd1.reduce((x,y) => x+1)
+results.collect
+rdd1.size
+// we are using the order_items data set from Durga's GIT repo
+the format of a record is:
+<order item #>,<order #>,<?>,<?>,<price>,<?>
+where the order item #s are 
+grouped into an order
+
+problem : what is the sum total of order #2?
+solution:
+
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines.toList
+val orderItemsFilter = orderItems.filter(orderItem => orderItem.split(",")(1).toInt == 2)
+val orderItemsMap = orderItemsFilter.map(orderItem => orderItem.split(",")(4).toFloat)
+orderItemsMap.reduce((x,y) => x+y)
+
+
+
+import scala.io.Source
+val orderItems = Source.fromFile("C:\\Hadoop\\certification\\InstructorsGITrepo\\data\\retail_db\\order_items\\part-00000").getLines
+val orderRevenue = orderItems.filter(orderItem => orderItem.split(",")(1).toInt == 2).map(orderItem => orderItem.split(",")(4).toFloat).reduce((x,y) => x+y)

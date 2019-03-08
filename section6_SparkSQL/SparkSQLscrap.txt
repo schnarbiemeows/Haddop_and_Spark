@@ -1,0 +1,247 @@
+// show all databases
+show databases;
+
+create database schnarbies1_retail_db_txt;
+use schnarbies1_retail_db_txt;
+
+set hive.metastore.warehouse.dir;
+//  yields = hive.metastore.warehouse.dir=/apps/hive/warehouse
+
+create table departments(department_id int, department_name string) 
+row format delimited fields terminated by ',' stored as textfile;
+create table customers(customer_id int, customer_fname string, customer_lname string, customer_email string, 
+customer_password string, customer_street string, customer_city string, customer_state string, customer_zipcode string) 
+row format delimited fields terminated by ',' stored as textfile; 
+create table categories(category_id int, category_department_id int, category_name string) 
+row format delimited fields terminated by ',' stored as textfile;
+create table products(product_id int, product_category_id int, product_name string, product_description string, 
+product_price float, product_image string) 
+row format delimited fields terminated by ',' stored as textfile;
+create table order_items(order_item_id int, order_item_order_id int, order_item_product_id int, 
+order_item_quantity int, order_item_subtotal float, order_item_product_price float) 
+row format delimited fields terminated by ',' stored as textfile;
+create table orders(order_id int, order_date string, order_customer_id int, order_status string) 
+row format delimited fields terminated by ',' stored as textfile;
+
+// load data command
+load data local inpath '/data/retail_db/orders' into table orders;
+load data local inpath '/data/retail_db/order_items' into table order_items;
+load data local inpath '/data/retail_db/products' into table products;
+load data local inpath '/data/retail_db/customers' into table customers;
+load data local inpath '/data/retail_db/categories' into table categories;
+load data local inpath '/data/retail_db/departments' into table departments;
+
+dfs -ls /apps/hive/warehouse/schnarbies1_retail_db_txt.db/orders
+
+create database schnarbies1_retail_db_orc;
+use schnarbies1_retail_db_orc;
+
+create table departments(department_id int, department_name string) 
+ stored as orc;
+create table customers(customer_id int, customer_fname string, customer_lname string, customer_email string, 
+customer_password string, customer_street string, customer_city string, customer_state string, customer_zipcode string) 
+ stored as orc; 
+create table categories(category_id int, category_department_id int, category_name string) 
+ stored as orc;
+create table products(product_id int, product_category_id int, product_name string, product_description string, 
+product_price float, product_image string) 
+ stored as orc;
+create table order_items(order_item_id int, order_item_order_id int, order_item_product_id int, 
+order_item_quantity int, order_item_subtotal float, order_item_product_price float) 
+ stored as orc;
+create table orders(order_id int, order_date string, order_customer_id int, order_status string) 
+ stored as orc;
+ 
+ describe orders;
+ describe  formatted orders;
+//  hdfs://nn01.itversity.com:8020/apps/hive/warehouse/schnarbies1_retail_db_orc.db/orders
+
+insert into table orders select * from schnarbies1_retail_db_txt.orders;
+insert into table order_items select * from schnarbies1_retail_db_txt.order_items;
+insert into table products select * from schnarbies1_retail_db_txt.products;
+insert into table customers select * from schnarbies1_retail_db_txt.customers;
+insert into table categories select * from schnarbies1_retail_db_txt.categories;
+insert into table departments select * from schnarbies1_retail_db_txt.departments;
+
+// using the spark-shell from this point forward
+
+spark-shell --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M 
+
+sqlContext.sql("use schnarbies1_retail_db_txt")
+sqlContext.sql("show tables").show
+
+
+select case order_status when 'CLOSED' then 'No Action' when 'COMPLETE' then 'No Action either' else 'Action!' end from orders limit 10;
+
+select o.order_id, sum(oi.order_item_subtotal) as order_revenue from orders o
+join order_items oi on o.order_id = oi.order_item_order_id
+group by o.order_id
+having sum(oi.order_item_subtotal) > 1000;
+
+select o.order_id, o.order_date, o.order_status, round(sum(oi.order_item_subtotal), 2) as order_revenue 
+from orders o join order_items oi 
+on o.order_id = oi.order_item_order_id
+where o.order_status in('COMPLETE','CLOSED')
+group by o.order_id, o.order_date, o.order_status
+having sum(oi.order_item_subtotal) >= 1000
+order by o.order_date, order_revenue desc;
+
+// get each order items details, get the total order percentage breakdown per order item
+// 
+// partition by
+select o.order_id, o.order_date, o.order_status, oi.order_item_subtotal,
+round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) as order_revenue,
+oi.order_item_subtotal/round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2)
+from orders o join order_items oi 
+on o.order_id = oi.order_item_order_id
+where o.order_status in('COMPLETE','CLOSED')
+order by o.order_date, order_revenue desc;
+
+
+select * from (
+select o.order_id, o.order_date, o.order_status, oi.order_item_subtotal,
+round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) as order_revenue,
+oi.order_item_subtotal/round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) pct_revenue,
+round(avg(oi.order_item_subtotal) over(partition by o.order_id), 2) avg_revenue
+from orders o join order_items oi 
+on o.order_id = oi.order_item_order_id
+where o.order_status in('COMPLETE','CLOSED')) q
+where order_revenue >=1000
+order by order_date, order_revenue desc;
+
+// rank
+select * from (
+select o.order_id, o.order_date, o.order_status, oi.order_item_subtotal,
+round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) as order_revenue,
+oi.order_item_subtotal/round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) pct_revenue,
+round(avg(oi.order_item_subtotal) over(partition by o.order_id), 2) avg_revenue,
+rank() over (partition by o.order_id order by oi.order_item_subtotal desc) rnk_revenue,
+dense_rank() over (partition by o.order_id order by oi.order_item_subtotal desc) dense_rnk_revenue,
+percent_rank() over (partition by o.order_id order by oi.order_item_subtotal desc) pct_rnk_revenue,
+row_number() over (partition by o.order_id order by oi.order_item_subtotal desc) rn_orderby_revenue,
+row_number() over (partition by o.order_id) rn_revenue
+from orders o join order_items oi 
+on o.order_id = oi.order_item_order_id
+where o.order_status in('COMPLETE','CLOSED')) q
+where order_revenue >=1000
+order by order_date, order_revenue desc, rnk_revenue;
+
+// yields
+// order_id      order_date        order_status  order_item_subtotal    order_revenue   pct_revenue             avg_revenue   rnk_revenue   dense_rnk_revenue   pct_rnk_revenue    rn_orderby_revenue   rn_revenue
+// 67410   2014-07-24 00:00:00.0   COMPLETE        399.98  				1019.94 		0.39216033392780764     203.99  		1       		1       		0.0     			1       				2
+// 67410   2014-07-24 00:00:00.0   COMPLETE        199.99  				1019.94 		0.19608016696390382     203.99  		2       		2       		0.25    			3       				1
+// 67410   2014-07-24 00:00:00.0   COMPLETE        199.99  				1019.94 		0.19608016696390382     203.99  		2       		2       		0.25    			2       				4
+// 67410   2014-07-24 00:00:00.0   COMPLETE        159.99  				1019.94 		0.15686217374861663     203.99  		4       		3       		0.75    			4       				5
+// 67410   2014-07-24 00:00:00.0   COMPLETE        59.99   				1019.94 		0.05881718697027942     203.99  		5       		4       		1.0     			5       				3
+
+the difference between rank() and dense_rank() is: if rank finds tie rankings
+say, a two-way tie for 2nd place, it will then sskip rank 3, and go to 4 instead.
+dense_rank() will not skip rank #s when it finds ties
+for row_number() if no "order by" clause is specified, each record will receive a random row #
+
+// windowing functions
+select * from (
+select o.order_id, o.order_date, o.order_status, oi.order_item_subtotal,
+round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) as order_revenue,
+oi.order_item_subtotal/round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) pct_revenue,
+round(avg(oi.order_item_subtotal) over(partition by o.order_id), 2) avg_revenue,
+rank() over (partition by o.order_id order by oi.order_item_subtotal desc) rnk_revenue,
+dense_rank() over (partition by o.order_id order by oi.order_item_subtotal desc) dense_rnk_revenue,
+percent_rank() over (partition by o.order_id order by oi.order_item_subtotal desc) pct_rnk_revenue,
+row_number() over (partition by o.order_id order by oi.order_item_subtotal desc) rn_orderby_revenue,
+row_number() over (partition by o.order_id) rn_revenue,
+lead(oi.order_item_subtotal) over (partition by o.order_id) lead_order_item_subtotal
+from orders o join order_items oi 
+on o.order_id = oi.order_item_order_id
+where o.order_status in('COMPLETE','CLOSED')) q
+where order_revenue >=1000
+order by order_date, order_revenue desc, rnk_revenue;
+
+select * from (
+select o.order_id, o.order_date, o.order_status, oi.order_item_subtotal,
+round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) as order_revenue,
+lead(oi.order_item_subtotal) over (partition by o.order_id) lead_item_subtotal,
+lag(oi.order_item_subtotal) over (partition by o.order_id) lag_item_subtotal,
+first_value(oi.order_item_subtotal) over (partition by o.order_id) first_item_subtotal,
+last_value(oi.order_item_subtotal) over (partition by o.order_id) last_item_subtotal
+from orders o join order_items oi 
+on o.order_id = oi.order_item_order_id
+where o.order_status in('COMPLETE','CLOSED') and o.order_id = 67410) q
+where order_revenue >=1000 
+order by order_date, order_revenue desc;
+
+// 67410   2014-07-24 00:00:00.0   COMPLETE        199.99  1019.94 NULL    399.98  159.99  199.99
+// 67410   2014-07-24 00:00:00.0   COMPLETE        399.98  1019.94 199.99  59.99   159.99  199.99
+// 67410   2014-07-24 00:00:00.0   COMPLETE        59.99   1019.94 399.98  199.99  159.99  199.99
+// 67410   2014-07-24 00:00:00.0   COMPLETE        199.99  1019.94 59.99   159.99  159.99  199.99
+// 67410   2014-07-24 00:00:00.0   COMPLETE        159.99  1019.94 199.99  NULL    159.99  199.99
+
+
+select * from (
+select o.order_id, o.order_date, o.order_status, oi.order_item_subtotal,
+round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) as order_revenue,
+oi.order_item_subtotal/round(sum(oi.order_item_subtotal) over(partition by o.order_id), 2) pct_revenue,
+round(avg(oi.order_item_subtotal) over(partition by o.order_id), 2) avg_revenue,
+rank() over (partition by o.order_id order by oi.order_item_subtotal desc) rnk_revenue,
+dense_rank() over (partition by o.order_id order by oi.order_item_subtotal desc) dense_rnk_revenue,
+percent_rank() over (partition by o.order_id order by oi.order_item_subtotal desc) pct_rnk_revenue,
+row_number() over (partition by o.order_id order by oi.order_item_subtotal desc) rn_orderby_revenue,
+row_number() over (partition by o.order_id) rn_revenue,
+lead(oi.order_item_subtotal) over (partition by o.order_id) lead_order_item_subtotal,
+lag(oi.order_item_subtotal) over (partition by o.order_id) lag_order_item_subtotal,
+first_value(oi.order_item_subtotal) over (partition by o.order_id) first_order_item_subtotal,
+last_value(oi.order_item_subtotal) over (partition by o.order_id) last_order_item_subtotal
+from orders o join order_items oi 
+on o.order_id = oi.order_item_order_id
+where o.order_status in('COMPLETE','CLOSED')) q
+where order_revenue >=1000
+order by order_date, order_revenue desc, rnk_revenue;
+
+// working inside spark-shell at this point
+val ordersRDD = sc.textFile("/public/retail_db/orders")
+val ordersDF = ordersRDD.map(order => {(order.split(",")(0).toInt, order.split(",")(1), order.split(",")(2).toInt, order.split(",")(3))}).toDF("order_id","order_date","order_customer_id","order_status")
+// register as temp table
+ordersDF.registerTempTable("orders")
+// now you can query it
+sqlContext.sql("select * from orders").show()
+
+val productsRaw = scala.io.Source.fromFile("/data/retail_db/products/part-00000").getLines().toList
+val productsRDD = sc.parallelize(productsRaw)
+val productsDF = productsRDD.map(order => {(order.split(",")(0).toInt, order.split(",")(2))}).toDF("product_id","product_name")
+productsDF.registerTempTable("products")
+val orderItemsRDD = sc.textFile("/public/retail_db/order_items")
+val orderItemsDF = orderItemsRDD.map(order => {(order.split(",")(0).toInt, order.split(",")(1).toInt, order.split(",")(2).toInt, order.split(",")(3).toInt, 
+order.split(",")(4).toFloat,order.split(",")(5).toFloat)}).toDF("order_item_id","order_item_order_id","order_item_product_id","order_item_quantity","order_item_subtotal","order_item_product_price")
+// register as temp table
+orderItemsDF.registerTempTable("order_items")
+
+sqlContext.sql("use schnarbies1_retail_db_txt")
+sqlContext.setConf("spark.sql.shuffle.partitions","2")
+sqlContext.sql("select o.order_date, p.product_name, sum(oi.order_item_subtotal) as daily_revenue_per_product " +
+"from orders o join order_items oi " +
+"on o.order_id = oi.order_item_order_id " +
+"join products p on p.product_id = oi.order_item_product_id " +
+"where o.order_status in('COMPLETE', 'CLOSED') " +
+"group by o.order_date, p.product_name " +
+"order by o.order_date, daily_revenue_per_product desc").show()
+
+// save this data into Hive tables
+sqlContext.sql("create database schnarbies1_daily_revenue")
+sqlContext.sql("create table schnarbies1_daily_revenue.daily_revenue " +
+"(order_date string, product_name string, daily_revenue_per_product float) " +
+"stored as orc")
+
+val daily_revenue_per_product = sqlContext.sql("select o.order_date, p.product_name, sum(oi.order_item_subtotal) as daily_revenue_per_product " +
+"from orders o join order_items oi " +
+"on o.order_id = oi.order_item_order_id " +
+"join products p on p.product_id = oi.order_item_product_id " +
+"where o.order_status in('COMPLETE', 'CLOSED') " +
+"group by o.order_date, p.product_name " +
+"order by o.order_date, daily_revenue_per_product desc")
+
+sqlContext.sql("select * from schnarbies1_daily_revenue.daily_revenue")
+
+daily_revenue_per_product.filter(daily_revenue_per_product("order_date") === "2013-07-25 00:00:00.0").show()

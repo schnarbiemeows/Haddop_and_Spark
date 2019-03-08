@@ -1,0 +1,68 @@
+// this code demonstrates how you utilize a function within another function in scala
+
+// squared sub function for inputting into the sum function
+def squared(input: Int) : Int = {
+	var total = input*input
+	total
+}
+
+// cubed sub function for inputting into the sum function
+def cubed(input: Int) : Int = {
+	var total = input*input*input
+	total
+}
+
+// double sub function for inputting into the sum function
+def double(input: Int) : Int = {
+	var total = input*2
+	total
+}
+
+// unit sub function
+def unit(input: Int) : Int = {
+	var total = input
+	total
+}
+
+// master function
+def sum(func: Int => Int, lb: Int, ub: Int) : Int = {
+	var total = 0
+	for(element <- lb to ub) {
+		total += func(element)
+	}
+	total
+}
+
+// you would call these functions as shown below, for example:
+// sum(double, 1, 10) 
+// sum(squared,1,10) 
+// sum(cubed,1,10)
+// sum(unit,1,10)
+
+// ******** ANONYMOUS FUNCTIONS
+// achieving the same results using anonymous functions
+// sum(i => i, 1, 10)
+// sum(i => 2*i, 1,10)
+// sum(i => i*i, 1, 10)
+// sum(i => i*i*i, 1, 10)
+
+// anonymous functions can be as long as you want
+
+// sum(i => {
+//	if(i%2 == 0) i*i
+//	else i*2
+//	} , 1, 10)
+
+// string manipulater to take the following string:
+// String = 1,2013-07-25 00:00:00.0,11599,CLOSED
+// to be
+// String = 1,20130725,11599,CLOSED
+def stringmanipulate(input : String) : String = {
+	var array = input.split(",")
+	var item1 = array(0)
+	var item2 = array(1).substring(0,10).replace("-","").toInt
+	var item3 = array(2)
+	var item4 = array(3)
+	var totalstring = item1 + "," + item2 + "," + item3 + "," + item4
+	totalstring
+}

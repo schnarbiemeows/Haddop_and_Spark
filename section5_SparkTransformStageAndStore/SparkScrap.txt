@@ -1,0 +1,269 @@
+// to launch the spark shell
+spark-shell --master yarn \
+--conf spark.ui.port=30000
+// we will be working with data in this repo
+hadoop fs -ls /public/retail_db
+hadoop fs -du -s -h /public/retail_db
+
+spark-shell --master yarn \
+--conf spark.ui.port=19091 \
+--num-executors 1 \
+--executor-memory 512M
+
+// here is where config parameters are
+cd /etc/spark/conf
+vi spark-defaults.conf
+vi spark-env.sh
+// to stop the default running context and create a new one:
+sc.stop
+import org.apache.spark.{SparkConf, SparkContext}
+val conf = new SparkConf().setAppName("Daily Revenue").setMaster("yarn-clinet")
+val sc = new SparkContext(conf)
+sc.getConf.getAll
+sc.getConf.getAll.foreach(println)
+
+
+//format of table orders:
+//order_id, order_date, order_customer_id, order_status
+//int,str,int,str
+//comma delimited
+
+// simple scala List
+val l = (1 to 1000).toList
+// making an RDD from a hdfs location
+val ordersRDD1 = sc.textFile("/public/retail_db/orders")
+// making an RDD from local file system
+val productsLocalData = scala.io.Source.fromFile("/data/retail_db/products/part-00000").getLines.toList
+// to use sc to make an RDD the data must be in List form
+val productsRDD1 = sc.parallelize(productsLocalData)
+val l_RDD = sc.parallelize(l)
+// view some of our data using the takeSample action
+productsRDD1.takeSample(true,10).foreach(println)
+
+
+ 
+// reading in JSON
+val ordersDataFrame = sqlContext.read.json("/public/retail_db_json/orders")
+// preview the data
+ordersDataFrame.show
+// show the DataFrame structure
+ordersDataFrame.printSchema 
+// show only certian fields
+ordersDataFrame.select("order_id","order_date").show
+// another way to load json data
+val ordersDataFrame2 = sqlContext.load("/public/retail_db_json/orders", "json")
+ordersDataFrame2.show
+
+// string manipulater to take the following string:
+// String = 1,2013-07-25 00:00:00.0,11599,CLOSED
+// to be
+// String = 1,20130725,11599,CLOSED
+def stringmanipulate(input : String) : String = {
+	var array = input.split(",")
+	var item1 = array(0)
+	var item2 = array(1).substring(0,10).replace("-","").toInt
+	var item3 = array(2)
+	var item4 = array(3)
+	var totalstring = item1 + "," + item2 + "," + item3 + "," + item4
+	totalstring
+}
+def stringmanipulatejustdate(input : String) : Int = {
+	var array = input.split(",")
+	var item2 = array(1).substring(0,10).replace("-","").toInt
+	item2
+}
+
+// in this function, we are taking the input string:
+// String = 1,2013-07-25 00:00:00.0,11599,CLOSED
+// and creating a tuple paired output of the order_id and the order_date(fromatted)
+// for use later with a join statement
+def ordersPairedRDD(input : String) = {
+	var array = input.split(",")
+	var item1 = array(0).toInt
+	var item2 = array(1).substring(0,10).replace("-","").toInt
+	var returntuple = (item1,item2)
+	returntuple
+}
+// full string RDD with dates manipulated
+val ordersRDDformattedDate = ordersRDD1.map(x => stringmanipulate(x))
+// just the dates RDD
+val orderdates = ordersRDD1.map(x => stringmanipulatejustdate(x))
+// order_id and order_date as a tuple for joining
+val ordersWithDates = ordersRDD1.map(x => ordersPairedRDD(x))
+// now create a tuple RDD out of order_items as well
+val orderitemsRDD1 = sc.textFile("/public/retail_db/order_items")
+// def function for this RDD tuple
+def orderItemsPairedRDD(input : String) = {
+	var array = input.split(",")
+	var item1 = array(1).toInt
+	var returntuple = (item1,input)
+	returntuple
+}
+// make a tuple RDD
+val orderitemsRDD2 = orderitemsRDD1.map(x => orderItemsPairedRDD(x))
+
+// flatMap examples
+val wordlist = List("hello","How are you doing?","Let us perform a word count","as part of the word count program","we will see how many times each word repeats")
+val wordListRDD = sc.parallelize(wordlist)
+val l_map = wordListRDD.map(ele => ele.split(" "))
+l_map: org.apache.spark.rdd.RDD[Array[String]] = MapPartitionsRDD[2] at map at <console>:31
+
+val l_flatMap = wordListRDD.flatMap(ele => ele.split(" "))
+l_flatMap: org.apache.spark.rdd.RDD[String] = MapPartitionsRDD[3] at flatMap at <console>:31
+
+val wordcount =  l_flatMap.map(word => (word,1)).countByKey
+wordcount.foreach(println)
+
+// filters
+val filteredOrders = ordersRDD1.filter(x => x.split(",")(3) == "COMPLETE")
+// complete or closed orders
+val filteredOrders = ordersRDD1.filter(x => (x.split(",")(3) == "COMPLETE"|| x.split(",")(3) == "CLOSED")&&(x.split(",")(1).contains("2013-07-25")))
+// july 25th 2013
+val filteredOrders = ordersRDD1.filter(x => x.split(",")(1).contains("2013-07-25"))
+
+// get the total 3 of orders of each status type
+val ordersStatus = ordersRDD1.map(x => (x.split(",")(3), 1))
+// yields = org.apache.spark.rdd.RDD[(String, Int)]
+val results = ordersStatus.reduceByKey((x,y) => x+y)
+// yields = org.apache.spark.rdd.RDD[(String, Int)]
+results.take(results.count.toInt).foreach(println)
+// my solution above, instructor's solution:
+
+val orderstatus = ordersRDD1.map(x => (x.split(",")(3), ""))
+orderstatus.countByKey.foreach(println)
+
+// get revenue per order_id, 
+// get the data in descending order by order_item_subtotal for each order_id
+val orderitems = sc.textFile("/public/retail_db/order_items")
+orderitems.take(13).foreach(println)
+//1,1,957,1,299.98,299.98
+//2,2,1073,1,199.99,199.99
+//3,2,502,5,250.0,50.0
+//4,2,403,1,129.99,129.99
+//5,4,897,2,49.98,24.99
+//6,4,365,5,299.95,59.99
+//7,4,502,3,150.0,50.0
+//8,4,1014,4,199.92,49.98
+//9,5,957,1,299.98,299.98
+//10,5,365,5,299.95,59.99
+// this RDD is for the first part
+val orderitems2 = orderitems.map(x => (x.split(",")(1).toInt,x.split(",")(5).toFloat))
+// this RDD is for the second part
+val orderitems3 = orderitems.map(x => (x.split(",")(1).toInt,x.split(",")(4).toFloat))
+// org.apache.spark.util.collection.CompactBuffer = spark collection
+val orderitemsGBK = orderitems2.groupByKey()
+val orderitems4 = orderitems2.reduceByKey((x,y) => x+y)
+// max
+val orderitems4 = orderitems2.reduceByKey((x,y) => if (y > x)y else x )
+
+orderitems4.take(10).foreach(println)
+val orderitems5 = orderitems3.groupByKey()
+orderitems5.take(10).foreach(println)
+
+
+//
+val orderItemsGBK = orderitems2.groupByKey
+// yields = org.apache.spark.rdd.RDD[(Int, Iterable[Float])]
+val orderitemsGBKtotal = orderitemsGBK.map(x => (x._1, x._2.toList))
+// yields = org.apache.spark.rdd.RDD[(Int, List[Float])]
+orderitemsGBKtotal.take(10).foreach(println)
+//
+val orderitemsGBKtotal = orderitemsGBK.map(x => (x._1, x._2.toList.sum))
+// yields = org.apache.spark.rdd.RDD[(Int, Float)]
+val orderitemsSorted = orderitemsGBK.flatMap(x => {x._2.toList.sortBy(o => -o).map(k => (x._1,k)) })
+
+// using aggregateByKey
+// orderitems2 = (1,299.98)
+//(2,199.99)
+//(2,250.0)
+// we want (order_id, (order_revenue, max_order_item_subtotal))
+val orderitems2 = orderitems3.map(x => (x.split(",")(1).toInt,x.split(",")(4).toFloat))
+val orderitems3 = orderitems.filter(x => x.split(",")(1).toInt == 2)
+// will calculate sum and max_order_item_subtotal
+val revenueAndMaxPerProductId = orderitems2.aggregateByKey((0.0f,0.0f))((inter,subtotal) => (inter._1 + subtotal, if(subtotal > inter._2) subtotal else inter._2),
+	(total, inter) => (total._1 + inter._1, if(total._2 > inter._2) total._2 else inter._2))
+// will calculate sum, max_order_item_subtotal, and min_order_item_subtotal
+val revenueAndMaxPerProductId = orderitems2.aggregateByKey((0.0f,0.0f,100000.0f))((inter,subtotal) => (inter._1 + subtotal, if(subtotal > inter._2) subtotal else inter._2,
+	if(subtotal < inter._3) subtotal else inter._3),
+	(total, inter) => (total._1 + inter._1, if(total._2 > inter._2) total._2 else inter._2, if(total._3 > inter._3) total._3 else inter._3))
+
+// will calculate sum, max_order_item_subtotal, and item count(to use for calculating average)
+val revenueAndMaxPerProductId = orderitems2.aggregateByKey((0.0f,0.0f,0.0f))((inter,subtotal) => (inter._1 + subtotal, if(subtotal > inter._2) subtotal else inter._2, inter._3+1),
+	(total, inter) => (total._1 + inter._1, if(total._2 > inter._2) total._2 else inter._2, inter._3))
+	
+// sortByKey
+val products = sc.textFile("/public/retail_db/products")
+// sort the products by product_id(2nd value)
+val productsKey = products.map(x => (x.split(",")(1)toInt,x))
+val productsSorted = productsKey.sortByKey(false)
+// sort by product price
+val productsKey = products.filter(x => x.split(",")(4) != "").map(x => ((x.split(",")(1).toInt,-x.split(",")(4).toFloat),x))
+val productsSorted = productsKey.sortByKey(false)
+
+val productsKey = products.filter(x => x.split(",")(4) != "").map(x => (x.split(",")(4).toFloat,x))
+
+// ranking
+val productsSorted = products.filter(x => x.split(",")(4) != "").takeOrdered(10)(Ordering[Float].reverse.on(x=> x.split(",")(4).toFloat))
+
+
+// get top N priced products within each product category
+val products = sc.textFile("/public/retail_db/products")
+val productsMap = products.filter(x => x.split(",")(4) != "").map(x => (x.split(",")(1)toInt,x))
+val productsGroupByCategory = productsMap.groupByKey
+
+// method to take an iterable and reaturn an iterable of the top 5 prices
+def getTopNPricedProducts(productsIterable: Iterable[String], topN: Int) : Iterable[String] = {
+	val productPrices = productsIterable.map(x => x.split(",")(4).toFloat).toSet
+	val topNPrices = productPrices.toList.sorted.reverse.take(topN)
+	val productsSorted = productsIterable.toList.sortBy(product => -product.split(",")(4).toFloat)
+	val minOfTopNPrices = topNPrices.min
+	val topNPricedProducts = productsSorted.takeWhile(product => product.split(",")(4).toFloat >= minOfTopNPrices)
+	topNPricedProducts
+}
+val top3PricedProductsPerCategory = productsGroupByCategory.flatMap(rec => getTopNPricedProducts(rec._2,3))
+
+val productsIterable = productsGroupByCategory.first._2
+// yields = Iterable[String]
+val productPrices = productsIterable.map(p => p.split(",")(4).toFloat).toSet
+// yields = scala.collection.immutable.Set[Float]
+val topNPrices = productPrices.toList.sortBy(p => -p).take(5)
+// yields = List[Float]
+val productsSorted = productsIterable.toList.sortBy(product => -product.split(",")(4).toFloat)
+// yields = List[String]
+val minOfTopNPrices = topNPrices.min
+val topNPricedProducts = productsSorted.takeWhile(product => product.split(",")(4).toFloat >= minOfTopNPrices)
+// yields = List[String]
+
+// set operations
+val orders = sc.textFile("/public/retail_db/orders")
+// org.apache.spark.rdd.RDD[String]
+// String = 1,2013-07-25 00:00:00.0,11599,CLOSED
+// find the common customers who placed orders in 2013 august AND september, and the ones who placed orders in august OR september
+// so make 2 filters, one for august, one for septemeber
+val augustOrders = orders.filter(rec => rec.split(",")(1).contains("2013-08"))
+val septemberOrders = orders.filter(rec => rec.split(",")(1).contains("2013-09"))
+// for each filtered set, map out to just the 3rd field
+val augustCustomers = augustOrders.map(rec => rec.split(",")(2).toInt)
+val septemberCustomers = septemberOrders.map(rec => rec.split(",")(2).toInt)
+// union the 2 sets and then distinct the results
+val intersectionCustomers = augustCustomers.intersection(septemberCustomers)
+val unionCustomers = augustCustomers.union(septemberCustomers).distinct
+intersectionCustomers.take(25).foreach(println)
+unionCustomers.take(25).foreach(println)
+
+// get all customers who placed orders in august but not september
+val augustMinusSeptcustomers = augustCustomers.map(x => (x,x)).leftOuterJoin(septemberCustomers.map(x => (x,x))).filter(x => x._2._2.toString.contains("None")).map(x => x._1)
+augustMinusSeptcustomers.distinct.count
+
+// saving to hdfs
+// get total orders by status, keep the results inan RDD format so we can save to hdfs, hence we use reduceByKey and not countByKey
+val orderCountByStatus = orders.map(order => (order.split(",")(3), 1)).reduceByKey((x,y) => x + y)
+orderCountByStatus.saveAsTextFile("/user/schnarbies/fromSparkSnappy", classOf[org.apache.hadoop.io.compress.SnappyCodec])
+
+// saving to standard file formats
+val ordersDF = sqlContext.read.json("/public/retail_db_json/orders")
+// yields = org.apache.spark.sql.DataFrame = [order_customer_id: bigint, order_date: string, order_id: bigint, order_status: string]
+ordersDF.save("/user/schnarbies/orders_parquet2","parquet")
+sqlContext.load("/user/schnarbies/orders_parquet2", "parquet").show
+ordersDF.write.orc("/user/schnarbies/orders_orc")
+sqlContext.read.orc("/user/schnarbies/orders_orc").show

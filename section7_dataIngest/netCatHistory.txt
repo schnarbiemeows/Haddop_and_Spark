@@ -1,0 +1,12 @@
+nc
+// two command windows
+nc -l -p 9999
+// on the cluster : nc -lk gw03.itversity.com 9999
+// second window
+nc localhost 9999
+// now we have two connections that can talk to each other directly
+spark-submit \
+--class wordCount \
+--master yarn \
+--conf spark.ui.port=27187 \
+wordcount_2.10-1.0.jar yarn-client gw03.itversity.com 9999

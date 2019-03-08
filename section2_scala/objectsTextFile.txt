@@ -1,0 +1,21 @@
+# this works easier if we just wirte our classes here and copy/paste into the editor; it will add the "|" characters automatically
+
+object HelloWorld {
+	def main(args: Array[String]): Unit = {
+		println("Hello World")
+		}
+	}
+
+class Thing(var thing1: Int,var thing2: Int,var pop: String) {
+	println("inside Thing const")
+	def add = {
+		var result = thing1 + thing2
+		result
+	}
+}
+object Thing {
+def apply(thing1: Int, thing2: Int, pop: String): Thing = {
+new Thing(1,2,"wohoo!")
+}
+}
+

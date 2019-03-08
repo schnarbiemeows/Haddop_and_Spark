@@ -1,0 +1,43 @@
+pyspark --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M
+
+ordersRDD1 = sc.textFile("/public/retail_db/orders")
+ordersRDD2 = sc.textFile("/public/retail_db/order_items")
+
+
+// in this function, we are taking the input string:
+// String = 1,2013-07-25 00:00:00.0,11599,CLOSED
+// and creating a tuple paired output ofthe order_id and the order_date(fromatted)
+// for use later with a join statement
+def ordersPairedRDD(input):
+		array = input.split(",")
+		item1 = int(array(0))
+		item2 = int(array(1).substring(0,10).replace("-",""))
+		returntuple = str(item1)
+		return returntuple
+
+
+def orderItemsPairedRDD(input):
+		array = input.split(",")
+		item1 = int(array(1))
+		returntuple = (item1,input)
+		return returntuple
+
+ordersRDDtake10 = ordersRDD1.take(10)
+ordersRDD11 = ordersRDD1.map(lambda x: (1,x.split(",")(1).substring(0,10).replace("-",""))
+ordersRDD21 = ordersRDD2.map(lambda x: orderItemsPairedRDD(x))
+
+orderResults = ordersRDD11.collect()
+for(key,value) in orderResults:
+	prinltn(str(key) + " : " + str(value) )
+	
+orderItemResults = ordersRDD21.collect()
+for(key,value) in orderResults:
+	print(str(key) + " : " + str(value) )
+	
+for line in ordersRDD21:
+	println(str(line))
+	
+orderItemResults = ordersRDD21.reduce(lambda x,y: x)

@@ -1,0 +1,125 @@
+sqoop import \
+-m4 \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--table orders \
+--hive-import \
+--hive-database schnarbies1_retail_db_txt \
+--hive-table orders_0702 \
+--hive-overwrite \
+--fields-terminated-by ','
+
+sqoop import \
+-m4 \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--table order_items \
+--hive-import \
+--hive-database schnarbies1_retail_db_txt \
+--hive-table order_items_0702 \
+--hive-overwrite \
+--fields-terminated-by ','
+
+sqoop import \
+-m4 \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--table customers \
+--hive-import \
+--hive-database schnarbies1_retail_db_txt \
+--hive-table customers_0702 \
+--hive-overwrite \
+--fields-terminated-by ','
+
+spark-shell --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M
+
+sqlContext.sql("use schnarbies1_retail_db_txt")
+val ordersDF = sqlContext.sql("select * from orders_0702")
+val orderitemDF = sqlContext.sql("select * from order_items_0702")
+val customersDF = sqlContext.sql("select * from customers_0702")
+ordersDF.write.json("/user/schnarbies/orders_0702")
+orderitemDF.write.json("/user/schnarbies/order_items_0702")
+customersDF.write.json("/user/schnarbies/customers_0702")
+ordersDF.registerTempTable("orders")
+orderitemDF.registerTempTable("orderitems")
+customersDF.registerTempTable("customers")
+val queryDF = sqlContext.sql("select o.order_id, c.customer_fname, c.customer_lname from orders o, customers c where o.order_customer_id = c.customer_id order by o.order_id")
+queryDF.registerTempTable("query")
+queryDF.write.json("/user/schnarbies/query2_0702")
+sqlContext.sql("select * from query limit 10").show
+
+use schnarbies1_retail_db_txt;
+select * from orders_0702 limit 10;
+select * from order_items_0702 limit 10;
+select * from customers_0702 limit 10;
+
+
+sqoop import \
+-m4 \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--table orders \
+--fields-terminated-by ',' \
+--delete-target-dir \
+--target-dir "/user/schnarbies/orders_0703" 
+
+sqoop import \
+-m4 \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--table customers \
+--fields-terminated-by ',' \
+--delete-target-dir \
+--target-dir "/user/schnarbies/customers_0702_rd1"
+
+spark-shell --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M
+
+val ordersRDD = sc.textFile("/user/schnarbies/orders_0702_rd1")
+val customersRDD = sc.textFile("/user/schnarbies/customers_0702_rd1")
+val ordersDF = ordersRDD.map(rec => {(rec.split(",")(0).toInt, rec.split(",")(1), rec.split(",")(2).toInt, rec.split(",")(3))}).toDF("order_id","order_date","order_customer_id","order_status")
+val customersDF = customersRDD.map(rec => {(rec.split(",")(0).toInt, rec.split(",")(1), rec.split(",")(2))}).toDF("customer_id","customer_fname","customer_lname")
+ordersDF.registerTempTable("orders")
+customersDF.registerTempTable("customers")
+val queryresult = sqlContext.sql("select o.order_id, c.customer_fname, c.customer_lname from orders o, customer c where o.order_customer_id = c.customer_id order by c.customer_lname, c.customer_fname desc")
+queryresult.write.json("/user/schnarbies/query_rd11")
+
+use schnarbies1_retail_db_txt;
+create table query_rd1(order_id varchar(45), firstname varchar(45), lastname varchar(45))
+row format delimited fields terminated by ","
+stored as textfile;
+
+load data inpath '/user/schnarbies/query_rd11' into table query_rd1;
+
+
+spark-shell --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M
+
+import scala.io.Source
+
+val customersraw = scala.io.Source.fromFile("/home/schnarbies/customers_0703/part-m-00000").getLines.toList
+val customersRDD = sc.parallelize(customersraw)
+val ordersRDD = sc.textFile("/user/schnarbies/orders_0703")
+val ordersDF = ordersRDD.map(rec => {(rec.split('^')(0).toInt,rec.split('^')(1),rec.split('^')(2).toInt,rec.split('^')(3))}).toDF("order_id","order_date","order_customer_id","order_status")
+val customersDF = customersRDD.map(rec => {(rec.split('^')(0).toInt,rec.split('^')(1),rec.split('^')(2))}).toDF("customer_id","customer_fname","customer_lname")
+ordersDF.registerTempTable("orders")
+customersDF.registerTempTable("customers")
+val joined = sqlContext.sql("select o.order_id, c.customer_fname, c.customer_lname from customers c left outer join orders o on c.customer_id = o.order_customer_id")
+joined.registerTempTable("joined")
+val results = sqlContext.sql("select customer_fname, customer_lname from joined where order_id is null order by customer_lname, customer_fname")
+results.rdd.saveAsTextFile("/user/schnarbies/results_0703")
+
+pull data in from a hdfs csv
+map out only the data primary type and 

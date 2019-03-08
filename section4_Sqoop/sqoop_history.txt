@@ -1,0 +1,374 @@
+sqoop list-tables \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--verbose
+
+sqoop list-databases \
+--connect jdbc:mysql://ms.itversity.com:3306/ \
+--username hr_user \
+--password XXXXXXXX \
+--verbose
+
+sqoop list-tables \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username <username> \
+--password-file file:///home/username/sqoop.password \
+--verbose
+
+# below does not work, therefore, the path to the password file is always an absolute path
+#sqoop list-tables \
+#--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+#--username <username> \
+#--password-file file:///sqoop.password \
+#--verbose
+
+sqoop eval \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username <username> \
+--password-file file:///home/<username>/sqoop.password \
+--query "select * from orders limit 10;" \
+--verbose
+
+# if your query includes quotes, you either have to escape any double quotes, or just use single quotes
+
+# to import to a taget directory, the target directory must not already exist, or else, there is
+# an overwrite parameter that needs to be specified
+# --delete-target-dir <- this will do this, will let you overwrite!
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table categories \
+--target-dir /user/schnarbies/sqoop_import/retail_db/categories
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table departments \
+--target-dir /user/schnarbies/sqoop_import/retail_db/departments
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table customers \
+--target-dir /user/schnarbies/sqoop_import/retail_db/customers
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table orders \
+--warehouse-dir /user/schnarbies/sqoop_import/retail_db
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table products \
+--warehouse-dir /user/schnarbies/sqoop_import/retail_db
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items_nopk \
+--split-by order_item_id \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items_nopk
+
+# splitting by non-numeric field
+sqoop import \
+-Dorg.apache.sqoop.splitter.allow_text_splitter=true \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table orders \
+--split-by order_status \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/orders
+
+# file formats:
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items_seq \
+--as-sequencefile
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items_avro \
+--as-avrodatafile
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items_parq \
+--as-parquetfile
+
+# compression took sequence file storage from 7.6M to 1.3M
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items_seq \
+--as-sequencefile \
+--compress
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items \
+--as-textfile \
+--compress \
+--compression-codec org.apache.hadoop.io.compress.SnappyCodec
+
+# boundary query
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items \
+--as-textfile \
+--boundary-query 'select min(order_item_id), max(order_item_id) from order_items where order_item_id > 99999'
+
+# using columns
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--columns order_item_id,order_item_product_id,order_item_subtotal \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items \
+--as-textfile
+
+# using queries to pull data from multiple tables
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "select b.order_id, b.order_date, b.order_customer_id, a.order_item_product_id, a.order_item_subtotal, b.order_status from order_items a join 
+orders b on a.order_item_order_id = b.order_id and \$CONDITIONS" \
+--delete-target-dir \
+--split-by order_id \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items \
+--as-textfile
+
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "select o.*, sum(oi.order_item_subtotal) order_revenue from orders o join order_items oi on o.order_id = oi.order_item_order_id and \$CONDITIONS
+group by o.order_id, o.order_date, o.order_customer_id, o.order_status" \
+--delete-target-dir \
+--split-by order_id \
+--target-dir /user/schnarbies/sqoop_import/retail_db/order_items \
+--as-textfile
+
+# null substituions and delimiters
+sqoop import \
+--connect jdbc:mysql://ms.itversity.com:3306/hr_db \
+--username hr_user \
+--password-file file:///home/schnarbies/sqoop.password \
+--table employees \
+--delete-target-dir \
+--target-dir /user/schnarbies/sqoop_import/hr_db/employees \
+--as-textfile \
+--null-non-string -1 \
+--fields-terminated-by "\001" \
+--lines-terminated-by ":"
+
+# incremental imports
+# base import
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "select * from orders where order_date like '2013-%' and \$CONDITIONS" \
+--delete-target-dir \
+--split-by order_id \
+--target-dir /user/schnarbies/sqoop_import/retail_db/orders \
+--as-textfile
+
+#incremental based on date:
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "select * from orders where order_date like '2014-%' and \$CONDITIONS" \
+--append \
+--split-by order_id \
+--target-dir /user/schnarbies/sqoop_import/retail_db/orders \
+--as-textfile
+
+#another way to do the same thing as above
+#incremental based on date:
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table orders \
+--where "order_date like '2015-%'" \
+--append \
+--target-dir /user/schnarbies/sqoop_import/retail_db/orders \
+--as-textfile
+
+#incremental based on PK - this table has 68883 records
+# do a base import 
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--query "select * from orders where order_id < 34442 and \$CONDITIONS" \
+--delete-target-dir \
+--split-by order_id \
+--target-dir /user/schnarbies/sqoop_import/retail_db/orders \
+--as-textfile
+
+# now try to imcremental
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table orders \
+--incremental append \
+--check-column order_id \
+--last-value 34441 \
+--split-by order_id \
+--target-dir /user/schnarbies/sqoop_import/retail_db/orders \
+--as-textfile
+
+#HIVE
+create database schnarbies_sqoop_import;
+use schnarbies_sqoop_import;
+create table t(i int);
+insert into table t values(1);
+select * from t;
+drop table t;
+
+#hive
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--hive-import \
+--hive-database schnarbies_sqoop_import \
+--hive-table order_items 
+
+#to see where the underlying data is for a table, use
+describe formatted order_items; 
+
+#overwrite hive table data
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--hive-import \
+--hive-database schnarbies_sqoop_import \
+--hive-table order_items \
+--hive-overwrite
+
+# re-import fail if table exists already
+sqoop import \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--table order_items \
+--hive-import \
+--hive-database schnarbies_sqoop_import \
+--hive-table order_items \
+--create-hive-table
+
+# import all tables
+sqoop import-all-tables \
+-m 4 \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_db \
+--username XXXXXXXX \
+--autoreset-to-one-mapper \
+--password-file file:///home/schnarbies/sqoop.password \
+--warehouse-dir /user/schnarbies/sqoop_import/retail_db
+
+#Hive table for exporting
+create table daily_revenue as
+select o.order_date, sum(oi.order_item_subtotal) daily_revenue
+from orders o join order_items oi on o.order_id = oi.order_item_order_id
+where o.order_date like '2013-07%'
+group by o.order_date;
+
+#mySQL table
+create table schnarbie_revenue(order_date varchar(30), revenue float);
+
+#export
+sqoop export \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_export \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--export-dir /apps/hive/warehouse/schnarbies_sqoop_import.db/daily_revenue \
+--input-fields-terminated-by "\001" \
+--table schnarbie_revenue
+
+#export using columns example
+create table schnarbie_revenue2(revenue float, order_date varchar(30), description varchar(200));
+
+sqoop export \
+--connect jdbc:mysql://ms.itversity.com:3306/retail_export \
+--username XXXXXXXX \
+--password-file file:///home/schnarbies/sqoop.password \
+--export-dir /apps/hive/warehouse/schnarbies_sqoop_import.db/daily_revenue \
+--input-fields-terminated-by "\001" \
+--table schnarbie_revenue2 \
+--columns order_date,revenue

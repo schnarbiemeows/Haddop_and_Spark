@@ -1,0 +1,4 @@
+[0m[[0m[31merror[0m] [0m[0mC:\GIT\local_repositories\CCA175\CCA175_certification\section2_scala\code\scalademo\retail\src\main\scala\DailyRevenue.scala:30:44: not found: value local_daily_revenue_txt_scala_results[0m
+[0m[[0m[31merror[0m] [0m[0m		finalRecords.saveAsTextFile(outputPath + local_daily_revenue_txt_scala_results)[0m
+[0m[[0m[31merror[0m] [0m[0m		                                         ^[0m
+[0m[[0m[31merror[0m] [0m[0mone error found[0m

@@ -1,0 +1,34 @@
+kafka-topics.sh --create \
+   --zookeeper nn01.itversity.com:2181,nn02.itversity.com:2181,rm01.itversity.com:2181 \
+   --replication-factor 1 \
+   --partitions 1 \
+   --topic schnarbiekafkademo
+
+kafka-topics.sh --list \
+   --zookeeper nn01.itversity.com:2181,nn02.itversity.com:2181,rm01.itversity.com:2181 \
+   --topic schnarbiekafkademo
+
+kafka-console-producer.sh \
+  --broker-list nn01.itversity.com:6667,nn02.itversity.com:6667,rm01.itversity.com:6667 \
+  --topic schnarbiekafkademo
+
+kafka-console-consumer.sh \
+  --zookeeper nn01.itversity.com:2181,nn02.itversity.com:2181,rm01.itversity.com:2181 \
+  --topic schnarbiekafkademo \
+  --from-beginning
+  
+#PATH=$PATH:$HOME/.local/bin:$HOME/bin
+
+#export KAFKA_HOME=/usr/hdp/2.5.0.0-1245/kafka
+#PATH=$PATH:$KAFKA_HOME/bin
+
+kafka-topics.sh --create \
+   --zookeeper nn01.itversity.com:2181,nn02.itversity.com:2181,rm01.itversity.com:2181 \
+   --replication-factor 1 \
+   --partitions 1 \
+   --topic kafkademoschnarbs
+   
+kafka-console-consumer.sh \
+  --zookeeper nn01.itversity.com:2181,nn02.itversity.com:2181,rm01.itversity.com:2181 \
+  --topic kafkademoschnarbs \
+  --from-beginning

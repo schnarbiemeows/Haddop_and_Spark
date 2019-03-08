@@ -1,0 +1,9 @@
+sbt package
+package
+run
+quit
+:quit
+run-main OrderRevenue 2
+"run-main OrderRevenue 2"
+run OrderRevenue 2
+run 2

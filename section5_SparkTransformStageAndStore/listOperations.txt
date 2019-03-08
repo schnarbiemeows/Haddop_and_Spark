@@ -1,0 +1,16 @@
+list operations:
+
+aggregate            andThen              apply                applyOrElse          asInstanceOf         canEqual             collect              collectFirst         combinations         companion            
+compose              contains             containsSlice        copyToArray          copyToBuffer         corresponds          count                diff                 distinct             drop                 
+dropRight            dropWhile            endsWith             exists               filter               filterNot            find                 flatMap              flatten              fold                 
+foldLeft             foldRight            forall               foreach              genericBuilder       groupBy              grouped              hasDefiniteSize      head                 headOption           
+indexOf              indexOfSlice         indexWhere           indices              init                 inits                intersect            isDefinedAt          isEmpty              isInstanceOf         
+isTraversableAgain   iterator             last                 lastIndexOf          lastIndexOfSlice     lastIndexWhere       lastOption           length               lengthCompare        lift                 
+map                  mapConserve          max                  maxBy                min                  minBy                mkString             nonEmpty             orElse               padTo                
+par                  partition            patch                permutations         prefixLength         product              productArity         productElement       productIterator      productPrefix        
+reduce               reduceLeft           reduceLeftOption     reduceOption         reduceRight          reduceRightOption    removeDuplicates     repr                 reverse              reverseIterator      
+reverseMap           reverse_:::          runWith              sameElements         scan                 scanLeft             scanRight            segmentLength        seq                  size                 
+slice                sliding              sortBy               sortWith             sorted               span                 splitAt              startsWith           stringPrefix         sum                  
+tail                 tails                take                 takeRight            takeWhile            to                   toArray              toBuffer             toIndexedSeq         toIterable           
+toIterator           toList               toMap                toSeq                toSet                toStream             toString             toTraversable        toVector             transpose            
+union                unzip                unzip3               updated              view                 withFilter           zip                  zipAll               zipWithIndex

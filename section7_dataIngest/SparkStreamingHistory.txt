@@ -1,0 +1,80 @@
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming._
+// or import org.apache.spark.streaming.{Seconds, StreamingContext}
+val conf = new SparkConf().setAppName("streaming").setMaster("yarn-client")
+val ssc = new StreamingContext(conf, Seconds(10))
+
+import org.apache.spark.SparkConf
+import org.apache.spark.streaming._
+// or import org.apache.spark.streaming.{Seconds, StreamingContext}
+val conf = new SparkConf().setAppName("Streaming word count").setMaster("local")
+val ssc = new StreamingContext(conf, Seconds(10))
+
+
+// project - 
+// Problem Statement: 
+//		Get department wise traffic every 30 seconds.
+// 		Read data from retail_db logs
+// 		Compute department traffic every 30 seconds
+// 		Save the output to HDFS
+// Solution:
+//      Use Spark Streaming
+//		Publish messages from retail_db logs to netcat
+//		Create Dstream
+//		Process and save the output
+// the location of the logs:
+ls -ltr /opt/gen_logs/logs/
+// to see the logs
+tail_logs.sh
+// to start the logs
+start_logs.sh
+// example log =
+// 212.103.100.47 - - [22/Jun/2018:18:30:59 -0800] "GET /departments HTTP/1.1" 200 1999 "-" "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:30.0) Gecko/20100101 Firefox/30.0"
+// to pipe logs into netcat:
+tail_logs.sh|nc -lk gw03.itversity.com 8123
+// to submit job:
+spark-submit \
+--class StreamingDepartmentCount \
+--master yarn \
+--conf spark.ui.port=27187 \
+wordcount_2.10-1.0.jar yarn-client gw03.itversity.com 8123
+// project, part 2: use flume instead of netcat to push streaming data into Spark
+// - read data from /opt/gen_logs/logs/access.log using flume
+// - write the unprocessed data as well as the streaming department count data to HDFS
+// - developmet:
+//		update build.sbt
+// 		new jar dependencies are : 
+//		spark-streaming-flume-sink_2.10-1.6.2.jar
+//		commons-lang3-3.5.jar
+//		create a new program(FlumeToStreamingDepartmentCount.scala)
+//		compile and build jar
+// - run and validate:
+//		ship to cluster
+//		run flume agent
+//		run spark submit with jars
+//		validate
+
+// spark-submit statement for the flume-sparkStreaming job
+spark-submit \
+--class FlumeToStreamingDepartmentCount \
+--master yarn \
+--conf spark.ui.port=27187 \
+--jars "/usr/hdp/2.5.0.0-1245/spark/lib/spark-streaming-flume-sink_2.10-1.6.2.jar,/usr/hdp/2.5.0.0-1245/spark/lib/spark-streaming-flume_2.10-1.6.2.jar,/usr/hdp/2.5.0.0-1245/spark/lib/spark-streaming_2.10-1.6.2.jar,/usr/hdp/2.5.0.0-1245/flume/lib/commons-lang3-3.5.jar,/usr/hdp/2.5.0.0-1245/flume/lib/flume-ng-sdk-1.5.2.2.5.0.0-1245.jar" \
+wordcount_2.10-1.0.jar yarn-client gw03.itversity.com 8123
+
+// spark-submit statement for the kafka-sparkStreaming job
+spark-submit \
+--class KafkaStreamingDepartmentCount \
+--master yarn \
+--conf spark.ui.port=27187 \
+--jars "/usr/hdp/2.5.0.0-1245/kafka/libs/kafka_2.10-0.8.2.1.jar,/usr/hdp/2.5.0.0-1245/kafka/libs/spark-streaming-kafka_2.10-1.6.2.jar,/usr/hdp/2.5.0.0-1245/kafka/libs/metrics-core-2.2.0.jar" \
+wordcount_2.10-1.0.jar yarn-client
+
+
+
+spark-submit \
+--class KafkaStreamingDepartmentCount \
+--master yarn \
+--conf spark.ui.port=12689
+--jars "/usr/hdp/2.5.0.0-1245/kafka/libs/kafka_2.10-0.8.2.1.jar,/usr/hdp/2.5.0.0-1245/kafka/libs/spark-streaming-kafka_2.10-1.6.2.jar,/usr/hdp/2.5.0.0-1245/kafka/libs/metrics-core-2.2.0.jar" \
+retail_2.10-1.0.jar yarn-client

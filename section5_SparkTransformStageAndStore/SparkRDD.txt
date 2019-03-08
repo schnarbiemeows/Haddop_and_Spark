@@ -1,0 +1,103 @@
+/user/schnarbies/orders_orc/part-r-00000-52bf9484-2dad-465c-8420-7bb6fea7202d.orc
+
+/user/schnarbies/orders_parquet2/part-r-00000-59ee5299-2cc1-4884-bce3-262ddd5b18af.gz.parquet
+
+I'll be using a database, schnarbies1_retail_db_txt for these labs
+
+schnarbies1_retail_db_orc
+schnarbies1_retail_db_txt
+
+sqoop eval \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--query "describe orders"
+
+
+#
+# There is insufficient memory for the Java Runtime Environment to continue.
+# Native memory allocation (mmap) failed to map 350748672 bytes for committing reserved memory.
+# Possible reasons:
+#   The system is out of physical RAM or swap space
+#   In 32 bit mode, the process size limit was hit
+# Possible solutions:
+#   Reduce memory load on the system
+#   Increase physical memory or swap space
+#   Check if swap backing store is full
+#   Use 64 bit Java on a 64 bit OS
+#   Decrease Java heap size (-Xmx/-Xms)
+#   Decrease number of Java threads
+#   Decrease Java thread stack sizes (-Xss)
+#   Set larger code cache with -XX:ReservedCodeCacheSize=
+# This output file may be truncated or incomplete.
+#
+#  Out of Memory Error (os_linux.cpp:2627), pid=17546, tid=139873906910976
+#
+# JRE version:  (8.0_77-b03) (build )
+# Java VM: Java HotSpot(TM) 64-Bit Server VM (25.77-b03 mixed mode linux-amd64 compressed oops)
+# Failed to write core dump. Core dumps have been disabled. To enable core dumping, try "ulimit -c unlimited" before starting Java again
+#
+
+sqoop import \
+-m4 \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--table orders \
+--input-fields-terminated-by "," \
+--hive-import \
+--hive-database schnarbies1_retail_db_txt \
+--hive-table orders_0628 \
+--hive-overwrite
+
+sqoop import \
+-m1 \
+--connect "jdbc:mysql://ms.itversity.com:3306/retail_db" \
+--username XXXXXXXX \
+--password XXXXXXXX \
+--table orders \
+--hive-import \
+--hive-database schnarbies1_retail_db_txt \
+--input-fields-terminated-by ',' \
+--hive-overwrite \
+--hive-table orders_0629_1 \
+--verbose
+
+--query "select order_id from orders where 1=1 and $\CONDITIONS" \
+
+create table orders_0629_json(order_id int)
+stored as orc;
+
+insert into table orders_0629_json select order_id from schnarbies1_retail_db_txt.orders_0629_1;
+
+so, i sqooped a DB table into Hive
+then created another hive table as orc
+inserted the order ids into orc table
+then pulled this table into a spark data frame
+then wrot this DF in json format into hdfs, then viewed the hdfs file to verify it is in json format
+
+
+/user/schnarbies/sqoop_import/retail_db
+schnarbies1_retail_db_txt
+
+pull in a table from this hdfs, say orders
+save it into json /user/schnarbies/json/orders
+pull it again into spark
+save it into parquet /user/schnarbies/parquet/orders
+
+val ordersRDD = sc.textFile("/user/schnarbies/sqoop_import/retail_db/orders")
+val ordersjsonDF = ordersRDD.map(rec => (rec.split(",")(0).toInt,rec.split(",")(1),rec.split(",")(2).toInt,rec.split(",")(3))).toDF("order_id","order_date","order_customer_id","order_status")
+ordersjsonDF.write.json("/user/schnarbies/json/orders")
+val ordersparquetDF = sqlContext.read.json("/user/schnarbies/json/orders")
+ordersparquetDF.write.parquet("/user/schnarbies/parquet/orders")
+sqlContext.read.parquet("/user/schnarbies/parquet/orders").show
+val orders2RDD = ordersTextDF.rdd
+orders2RDD.saveAsTextFile("/user/schnarbies/text/orders1")
+val ordersTextDF = sqlContext.read.text("/user/schnarbies/text/orders1")
+ordersTextDF.registerTempTable("orderstext")
+sqlContext.sql("select * from orderstext").show
+val onlyorderId = sqlContext.sql("select order_id from orderstext")
+ordersparquetDF.registerTempTable("ordersparquet")
+val ordersTextDF = sqlContext.read.text("/user/schnarbies/text/orders")
+val ordersRDD = sc.textFile("/user/schnarbies/text/orders")
+ordersRDD.take(10).foreach(println)

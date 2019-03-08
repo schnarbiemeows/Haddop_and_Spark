@@ -1,0 +1,3 @@
+flume-ng agent --name a1 --conf-file /home/schnarbies/flume_demo/example.conf
+flume-ng agent --name sdc --conf-file /home/schnarbies/flume_demo/flumeToSS.conf
+flume-ng agent --name sdc --conf-file /home/schnarbies/flume_demo/flumeToKafka.conf

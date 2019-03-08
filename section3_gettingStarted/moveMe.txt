@@ -1,0 +1,12 @@
+move this code
+far, far away
+back and forth
+every day
+again, move this code
+to and fro
+it doesn't really matter
+what's in it, you know
+i just want to show
+that I know
+how to move data to/from hdfs
+so this file is for practice

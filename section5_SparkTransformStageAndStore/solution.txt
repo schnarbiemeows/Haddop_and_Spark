@@ -1,0 +1,60 @@
+// launch the spark shell - Understand the environment and use resources optimally
+spark-shell --master yarn \
+--conf spark.ui.port=30000 \
+--num-executors 1 \
+--executor-memory 512M
+
+// read orders and order_items
+val orders = sc.textFile("/public/retail_db/orders")
+val orderItems = sc.textFile("/public/retail_db/order_items")
+// filter for completed or closed orders
+val ordersFiltered = orders.filter(rec => rec.split(",")(3) == "COMPLETE" || rec.split(",")(3) == "CLOSED")
+// convert both filtered orders and order_items to key-value pairs
+val ordersMap = ordersFiltered.map(rec => (rec.split(",")(0).toInt, rec.split(",")(1)))
+val orderItemsMap = orderItems.map(rec => (rec.split(",")(1).toInt, (rec.split(",")(2).toInt, rec.split(",")(4).toFloat)))
+// join the two data sets
+val ordersJoin = ordersMap.join(orderItemsMap)
+// (65722,(2014-05-23 00:00:00.0,(365,119.98)))
+// get the daily revenue per product_id
+val ordersJoinMap = ordersJoin.map(rec => ((rec._2._1, rec._2._2._1),rec._2._2._2))
+// **************** ((order_date, order_item_product_id), order_item_subtotal) *************** composite key! AHA
+val ordersJoinDailyRevenue = ordersJoinMap.reduceByKey((rec, y) => rec + y)
+// ((order_date, order_item_product_id), daily_revenue_per_product_id)
+
+
+
+
+
+
+// load products from the local file system and convert into RDD
+val productsLocalData = scala.io.Source.fromFile("/data/retail_db/products/part-00000").getLines.toList
+val products = sc.parallelize(productsLocalData)
+val filtered_products = products.filter(x => x.split(",")(4) != "")
+val tupled_products = filtered_products.map(rec => (rec.split(",")(0).toInt,rec.split(",")(2)))
+// join daily revenue per product id with products to get daily revenue per product(by name)
+// ((2014-07-17 00:00:00.0,403),3379.7402)
+val ordersJoinDailyRevenueMap = ordersJoinDailyRevenue.map(rec => (rec._1._2, (rec._1._1, rec._2)))
+val ordersJoinProducts = ordersJoinDailyRevenueMap.join(tupled_products)
+// sort the data by date in ascending order and by daily revenue per product in descending order
+// (24,((2013-11-19 00:00:00.0,239.97),Elevation Training Mask 2.0))
+val ordersJoinProductsMap = ordersJoinProducts.map(rec => ((rec._2._1._1, rec._2._1._2) , rec._2._2))
+// get data to desired format - order_date, daily_revenue_per_product, product_name
+val partialSortedRecords = ordersJoinProductsMap.sortByKey(false)
+// my solution here ...
+val partialSortedRecordsMap = partialSortedRecords.map(rec => (rec._1._1, (rec._1._2, rec._2)))
+val finalSortedRecords = partialSortedRecordsMap.sortByKey(true)
+val finalRecords = finalSortedRecords.map(rec => rec.toString).map(rec => rec.replace("(","")).map(rec => rec.replace(")",""))
+
+// his solution ....
+val dailyRevenuePerProductSorted = ordersJoinProducts.map(rec => ((rec._2._1._1, -rec._2._1._2), (rec._2._1._1, rec._2._1._2, rec._2._2))).sortByKey()
+val = dailyRevenuePerProductSorted.map(rec => rec._2.mkString(","))
+
+// save final output into HDFS in avro file format as well as text file format
+// HDFS location = avro format /user/schnarbies/daily_revenue_avro_scala
+// he is not actually going to explain this(?)
+// HDFS location - text format /user/schnarbies/daily_revenue_txt_scala
+finalRecords.saveAsTextFile("/user/schnarbies/daily_revenue_txt_scala")
+sc.textFile("/user/schnarbies/daily_revenue_txt_scala").take(10).foreach(println)
+// /home/schnarbies/daily_revenue_scala
+// do this outside of Spark using a hadoop fs -get /user/schnarbies/daily_revenue_txt_scala /home/schnarbies/daily_revenue_scala
+

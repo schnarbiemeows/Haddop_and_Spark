@@ -1,0 +1,47 @@
+println("Hello World")
+object HelloWorld {
+def main(args: Array[String]): Unit = {
+println("Hello World")
+}
+}
+HelloWorld.main(Array(""))
+class Thing(var thing1: Int,var thing2: Int,var pop: String) {
+println("inside Thing const")
+def add = {
+var result = thing1 + thing2
+result
+}
+}
+val item = Thing.apply(5,10,"wow!")
+item.thing1
+case class Order(var orderId:Int,var orderDate:String,var orderCustomerId:Int,var orderStatus:String)
+val order = Order(1, "2013-10-01 00:00:00.000", 100,"COMPLETE")
+order.orderId
+val a = Array(1,2,3,4)
+val s = (1,1,2,2,3,3,4,4)
+s
+val s = Set(1,1,2,2,3,3,4,4)
+s
+val x = List(1,2,5,3,1,6,9,2,13,4)
+val m = Map("hi" -> 1, "there" ->2)
+m
+m.foreach(println)
+x.foreach(println)
+s.foreach(println)
+s(2)
+m("hi")
+x(0)
+x(5)
+val a = Array(1,2,3,4)
+a(3)
+val l = (1 to 100).toList
+val f = l.filter(ele => ele%2==0)
+val squares = f.map(ele => ele*ele)
+squares.sum
+var total = squares.sum
+squares
+squares.reverse
+squares.reverse
+squares.reduce((x,y) => x+y)
+val names = ("harry","sally","jeff","bob","schnarbs","meowers")
+names._4
